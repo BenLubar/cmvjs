@@ -1,0 +1,93 @@
+<html>
+<body>
+<script>
+var worker = new Worker('worker.js');
+var movies = {};
+worker.onmessage = function(e) {
+	if (e.data.frame) {
+		var movie = movies[e.data.file];
+		if (!movie) {
+			console.log('no movie for ' + e.data.file);
+		}
+		movie.frames.push(e.data.frame);
+		movie.notify.forEach(function(f) {
+			f(e.data.frame, movie);
+		});
+	}
+}
+function startStream(path, callback) {
+	var movie = movies[path];
+	if (movie) {
+		console.log('stream already started for ' + path);
+		movie.notify.push(callback);
+		movie.frames.forEach(function(frame) {
+			callback(frame, movie);
+		});
+		return;
+	}
+	console.log('starting stream for ' + path);
+	movies[path] = {frames: [], notify: [callback]};
+	worker.postMessage({file: path});
+}
+
+var tileWidth = 10, tileHeight = 12;
+var tileset = new Image();
+tileset.src = 'curses_800x600.png';
+tileset.onload = function() {
+	var canvas = document.createElement('canvas');
+	var ctx = null;
+	var slider = document.createElement('input');
+	slider.type = 'range';
+	slider.min = slider.max = slider.value = 0;
+	slider.disabled = true;
+	slider.oninput = slider.onchange = function() {
+		seek(slider.value);
+	};
+	var renderTick = null;
+	var currentFrame = -1;
+	var seek = null;
+	var paused = false;
+
+	var renderFrame = function(frame) {
+		frame.forEach(function(col, x) {
+			col.forEach(function(tile, y) {
+				ctx.drawImage(tileset, tile[1] * tileWidth, tile[0] * tileHeight, tileWidth, tileHeight, x * tileWidth, y * tileHeight, tileWidth, tileHeight);
+			});
+		});
+	};
+
+	var render = function(movie) {
+		slider.value = currentFrame;
+		renderFrame(movie.frames[currentFrame]);
+
+		if (!paused && movie.frames.length > currentFrame + 1) {
+			currentFrame++;
+		}
+	};
+
+	var once = function(frame, movie) {
+		canvas.width = tileWidth * frame.length;
+		canvas.height = frame.length ? tileHeight * frame[0].length : 0;
+		ctx = canvas.getContext('2d');
+		slider.disabled = false;
+
+		seek = function(tick) {
+			currentFrame = tick;
+			clearTimeout(renderTick);
+			renderTick = setInterval(render.bind(null, movie), 20);
+			render(movie);
+		};
+		seek(0);
+
+		once = function(frame, movie) {};
+	};
+
+	startStream('last_record.cmv', function(frame, movie) {
+		once(frame, movie);
+		slider.max = movie.frames.length - 1;
+	});
+
+	document.body.appendChild(canvas);
+	document.body.appendChild(slider);
+};
+</script>
