@@ -20,18 +20,18 @@ function loadCMV(path) {
 	xhr.onprogress = function(e) {
 		if (version === null && e.loaded >= 4) {
 			version = uint32(xhr.responseText, 0);
-			console.log(path + ' version: ' + version);
+			//console.log(path + ' version: ' + version);
 			if (version < 10000 || version > 10001) {
 				throw path + ' unsupported cmv version ' + version;
 			}
 		}
 		if (width === null && e.loaded >= 4 + 4) {
 			width = uint32(xhr.responseText, 4);
-			console.log(path + ' width: ' + width);
+			//console.log(path + ' width: ' + width);
 		}
 		if (height === null && e.loaded >= 4 + 4 + 4) {
 			height = uint32(xhr.responseText, 4 + 4);
-			console.log(path + ' height: ' + height);
+			//console.log(path + ' height: ' + height);
 		}
 		if (index === null && e.loaded >= 4 + 4 + 4 + 4 + 4) {
 			if (version >= 10001) {
@@ -39,11 +39,11 @@ function loadCMV(path) {
 				var i = 4 + 4 + 4 + 4 + 4 + uint32(xhr.responseText, 4 + 4 + 4 + 4) * 50 + 200 * 16 * 4;
 				if (e.loaded >= i) {
 					index = i;
-					console.log(path + ' finished header');
+					//console.log(path + ' finished header');
 				}
 			} else {
 				index = 4 + 4 + 4 + 4;
-				console.log(path + ' finished header');
+				//console.log(path + ' finished header');
 			}
 		}
 		if (index !== null && e.loaded >= index + 4) {
@@ -56,7 +56,7 @@ function loadCMV(path) {
 				var data = new Zlib.Inflate(compressed).decompress();
 				index += 4 + length;
 				toParse.push(data);
-				console.log(path + ' decompressed: ' + length + ' -> ' + data.length);
+				//console.log(path + ' decompressed: ' + length + ' -> ' + data.length);
 
 				parseIndex = extractFrames(path, toParse, parseIndex, version, width, height);
 			}
