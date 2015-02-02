@@ -46,7 +46,7 @@ function loadCMV(path) {
 				//console.log(path + ' finished header');
 			}
 		}
-		if (index !== null && e.loaded >= index + 4) {
+		while (index !== null && e.loaded >= index + 4) {
 			var length = uint32(xhr.responseText, index);
 			if (e.loaded >= index + 4 + length) {
 				var compressed = new Uint8Array(length);
@@ -59,6 +59,8 @@ function loadCMV(path) {
 				//console.log(path + ' decompressed: ' + length + ' -> ' + data.length);
 
 				parseIndex = extractFrames(path, toParse, parseIndex, version, width, height);
+			} else {
+				break;
 			}
 		}
 	};
