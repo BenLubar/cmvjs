@@ -8,6 +8,8 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"io"
 	"net/http"
 	"os"
@@ -16,14 +18,14 @@ import (
 	"time"
 )
 
-const movieDir = "/home/ben/df_linux/data/movies/"
+var movieDir = flag.String("dir", "/home/ben/df_linux/data/movies", "cmv directory")
 
 func html(a asset) asset { return a }
 func png(a asset) asset  { return a }
 func js(a asset) asset   { return a }
 
 func main() {
-	movies := http.FileServer(http.Dir(movieDir))
+	movies := http.FileServer(http.Dir(*movieDir))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			if strings.HasSuffix(r.URL.Path, ".cmv") {
@@ -41,7 +43,7 @@ func main() {
 	http.Handle("/curses_800x600.png", cursespng)
 
 	http.HandleFunc("/last_record.cmv", func(w http.ResponseWriter, r *http.Request) {
-		dir, err := os.Open(movieDir)
+		dir, err := os.Open(*movieDir)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -74,7 +76,7 @@ func main() {
 			return
 		}
 
-		f, err := os.Open(filepath.Join(dir.Name(), newest.Name()))
+		f, err := os.Open(filepath.Join(*movieDir, newest.Name()))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -97,6 +99,22 @@ func main() {
 			}
 			time.Sleep(time.Second)
 		}
+	})
+	http.HandleFunc("/movies.json", func(w http.ResponseWriter, r *http.Request) {
+		dir, err := os.Open(*movieDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer dir.Close()
+
+		names, err := dir.Readdirnames(0)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		_ = json.NewEncoder(w).Encode(names)
 	})
 
 	// 3 = c, 13 = m, 22 = v

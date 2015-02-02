@@ -24,7 +24,7 @@ func (a asset) init() asset {
 
 func (a asset) importPath() string {
 	// filled at code gen time
-	return "."
+	return "github.com/BenLubar/cmvjs"
 }
 
 func (a asset) Open() (*os.File, error) {

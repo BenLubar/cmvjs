@@ -4,27 +4,33 @@
 <style>
 html {
 	background: #000;
+}
+body {
+	margin: 0;
+}
+.cmv-container {
 	width: 800px;
 	margin: auto;
 }
-body {
-	margin: 20px 0;
+.cmv-container:after {
+	content: '';
+	clear: both;
 }
-canvas, input, button, span {
+.cmv-canvas, .cmv-time-slider, .cmv-pause-button, .cmv-time-display {
 	display: block;
 }
-input {
-	width: 640px;
+.cmv-time-slider {
+	width: 610px;
 	height: 22px;
 }
-button {
+.cmv-pause-button {
 	float: left;
 	width: 40px;
 	height: 26px;
 }
-span {
+.cmv-time-display {
 	float: right;
-	width: 120px;
+	width: 150px;
 	color: #fff;
 	font: 11px/26px monospace;
 	text-align: center;
@@ -33,5 +39,11 @@ span {
 </head>
 <body>
 <script src="main.js"></script>
+<script>
+var tileset = new CMV.TileSet();
+var last_record = new CMV.Renderer(tileset);
+CMV.start('last_record.cmv', last_record.callback);
+document.body.appendChild(last_record.element);
+</script>
 </body>
 </html>

@@ -25,6 +25,14 @@ var CMV = function() {
 				f(frame, movie);
 			});
 		}
+		if (e.data.done) {
+			var movie = movies[e.data.file];
+			if (!movie) {
+				console.log('no movie for ' + e.data.file);
+				return;
+			}
+			movie.done = true;
+		}
 	}
 
 	function startStream(path, callback) {
@@ -62,89 +70,121 @@ var CMV = function() {
 		}
 	}
 
-	var colors = [
+	var defaultColors = [
 		[
-			[0, 0, 0],
-			[0, 0, 128],
-			[0, 128, 0],
-			[0, 128, 128],
-			[128, 0, 0],
-			[128, 0, 128],
-			[128, 128, 0],
+			[  0,   0,   0],
+			[  0,   0, 128],
+			[  0, 128,   0],
+			[  0, 128, 128],
+			[128,   0,   0],
+			[128,   0, 128],
+			[128, 128,   0],
 			[192, 192, 192]
 		],
 		[
 			[128, 128, 128],
-			[0, 0, 255],
-			[0, 255, 0],
-			[0, 255, 255],
-			[255, 0, 0],
-			[255, 0, 255],
-			[255, 255, 0],
+			[  0,   0, 255],
+			[  0, 255,   0],
+			[  0, 255, 255],
+			[255,   0,   0],
+			[255,   0, 255],
+			[255, 255,   0],
 			[255, 255, 255]
 		]
 	];
 
-	var tileset = new Image();
-	tileset.src = 'curses_800x600.png';
-	tileset.onload = function() {
-		var tileWidth = tileset.width / 16;
-		var tileHeight = tileset.height / 16;
-		var tiles = function() {
+	function TileSet(path, colors) {
+		this.colors = colors || defaultColors;
+		this.image = new Image();
+		this.image.src = path || 'curses_800x600.png';
+		this.image.onload = function() {
 			var canvas = document.createElement('canvas');
-			canvas.width = tileset.width;
-			canvas.height = tileset.height;
+			var width = this.width = (canvas.width = this.image.width) / 16;
+			var height = this.height = (canvas.height = this.image.height) / 16;
+			var tiles = this.tiles = [];
 			var ctx = canvas.getContext('2d');
-			ctx.drawImage(tileset, 0, 0);
-			var tiles = [];
+			ctx.drawImage(this.image, 0, 0);
 			for (var y = 0; y < 16; y++) {
 				for (var x = 0; x < 16; x++) {
-					tiles.push(ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight));
+					tiles.push(ctx.getImageData(x * width, y * height, width, height));
 				}
 			}
-			return tiles;
-		}();
+			this.loaded = true;
+			if (this.onload) {
+				this.onload();
+			}
+		}.bind(this);
+	}
 
-		var rendering = false;
+	var pauseButtonText = '▮▮', playButtonText = '▶';
+
+	function Renderer(tileset) {
 		var canvas = document.createElement('canvas');
+		canvas.className = 'cmv-canvas';
 		var ctx = null;
+
 		var slider = document.createElement('input');
 		slider.type = 'range';
 		slider.min = slider.max = slider.value = 0;
 		slider.disabled = true;
+		slider.className = 'cmv-time-slider';
 		slider.oninput = slider.onchange = function() {
 			if (!rendering) {
-				seek(+slider.value);
+				this.seek(+slider.value);
 			}
-		};
-		var msPerFrame = 20;
-		var timeDisplay = document.createElement('span');
-		var renderTick = null;
-		var currentFrame = -1;
-		var seek = null;
-		var mousedown = false;
+		}.bind(this);
 		slider.onmousedown = function() {
 			mousedown = true;
 		};
 		slider.onmouseup = function() {
 			mousedown = false;
-		}
+		};
+
+		var msPerFrame = 20;
+		function formatTime(t) {
+			var negative = '';
+			if (t < 0) {
+				t = -t;
+				negative = '-';
+			}
+			var seconds = Math.floor(t * 10) / 10 % 60, minutes = Math.floor(t / 60);
+			if (Math.floor(seconds) == seconds) {
+				seconds += '.0';
+			}
+			if (seconds < 10) {
+				seconds = '0' + seconds;
+			}
+			seconds = String(seconds).substring(0, 4);
+			return negative + minutes + ':' + seconds;
+		};
+
+		var timeDisplay = document.createElement('span');
+		timeDisplay.className = 'cmv-time-display';
+
+		var renderTick = null;
+		var currentFrame = -1;
+
+		var rendering = false;
+		var mousedown = false;
 		var dirty = false;
 		var paused = false;
+
 		var pauseButton = document.createElement('button');
-		pauseButton.innerHTML = '▮▮';
+		pauseButton.className = 'cmv-pause-button cmv-pause-button-pause';
+		pauseButton.innerHTML = pauseButtonText;
 		pauseButton.onclick = function() {
 			paused = !paused;
 			dirty = true;
 			if (paused) {
-				pauseButton.innerHTML = '▶';
+				pauseButton.className = 'cmv-pause-button cmv-pause-button-play';
+				pauseButton.innerHTML = playButtonText;
 			} else {
-				pauseButton.innerHTML = '▮▮';
+				pauseButton.className = 'cmv-pause-button cmv-pause-button-pause';
+				pauseButton.innerHTML = pauseButtonText;
 			}
 		};
-
 		var imageData = null;
-		var renderFrame = function(frame) {
+		function renderFrame(frame) {
 			var mid = frame.width * frame.height;
 
 			for (var tx = 0; tx < frame.width; tx++) {
@@ -153,18 +193,18 @@ var CMV = function() {
 					var off2 = off1 + ty;
 					var off3 = off2 + mid;
 
-					var t = tiles[frame.data[off2]];
-					var fg = colors[frame.data[off3] >> 6][frame.data[off3] & 7];
-					var bg = colors[0][(frame.data[off3] >> 3) & 7];
+					var t = tileset.tiles[frame.data[off2]];
+					var fg = tileset.colors[frame.data[off3] >> 6][frame.data[off3] & 7];
+					var bg = tileset.colors[0][(frame.data[off3] >> 3) & 7];
 
-					for (var x = 0; x < tileWidth; x++) {
-						for (var y = 0; y < tileHeight; y++) {
-							var off = (x + y * tileWidth) * 4;
+					for (var x = 0; x < tileset.width; x++) {
+						for (var y = 0; y < tileset.height; y++) {
+							var off = (x + y * tileset.width) * 4;
 							var r = t.data[off + 0], g = t.data[off + 1], b = t.data[off + 2], a = t.data[off + 3];
 							if (r == 255 && g == 0 && b == 255 && a == 255) {
 								r = g = b = a = 0;
 							}
-							off = ((x + tx * tileWidth) + (y + ty * tileHeight) * imageData.width) * 4;
+							off = ((x + tx * tileset.width) + (y + ty * tileset.height) * imageData.width) * 4;
 							imageData.data[off + 0] = (r * a * fg[0] / 255 + (255 - a) * bg[0]) / 255;
 							imageData.data[off + 1] = (g * a * fg[1] / 255 + (255 - a) * bg[1]) / 255;
 							imageData.data[off + 2] = (b * a * fg[2] / 255 + (255 - a) * bg[2]) / 255;
@@ -177,19 +217,34 @@ var CMV = function() {
 			ctx.putImageData(imageData, 0, 0);
 		};
 
-		var formatTime = function(t) {
-			var seconds = Math.floor(t * 10) / 10 % 60, minutes = Math.floor(t / 60);
-			if (Math.floor(seconds) == seconds) {
-				seconds += '.0';
+		var once = function(frame, movie) {
+			if (!firstFrame) {
+				firstFrame = frame;
+				theMovie   = movie;
 			}
-			if (seconds < 10) {
-				seconds = '0' + seconds;
+			if (!tileset.loaded) {
+				return;
 			}
-			seconds = String(seconds).substring(0, 4);
-			return minutes + ':' + seconds;
-		};
 
-		var render = function(movie) {
+			canvas.width = tileset.width * frame.width;
+			canvas.height = tileset.height * frame.height;
+			ctx = canvas.getContext('2d');
+			imageData = ctx.createImageData(canvas.width, canvas.height);
+			slider.disabled = false;
+
+			this.seek = function(tick) {
+				currentFrame = tick;
+				clearTimeout(renderTick);
+				renderTick = setInterval(render.bind(this, movie), msPerFrame);
+				dirty = true;
+				render.call(this, movie);
+			};
+			this.seek(0);
+
+			once = function(frame, movie) {};
+		}.bind(this);
+
+		function render(movie) {
 			rendering = true;
 
 			if (!mousedown) {
@@ -199,7 +254,11 @@ var CMV = function() {
 			if (dirty) {
 				var start = +new Date();
 				renderFrame(movie.frames[currentFrame]);
-				timeDisplay.innerHTML = formatTime(currentFrame * msPerFrame / 1000) + ' / ' + formatTime((movie.frames.length - 1) * msPerFrame / 1000);
+				if (movie.done) {
+					timeDisplay.innerHTML = formatTime(currentFrame * msPerFrame / 1000) + ' / ' + formatTime((movie.frames.length - 1) * msPerFrame / 1000);
+				} else {
+					timeDisplay.innerHTML = formatTime((currentFrame - movie.frames.length - 1) * msPerFrame / 1000) + ' / LIVE';
+				}
 				dirty = false;
 				add += Math.floor((new Date() - start) / msPerFrame);
 			}
@@ -213,39 +272,49 @@ var CMV = function() {
 			rendering = false;
 		};
 
-		var once = function(frame, movie) {
-			canvas.width = tileWidth * frame.width;
-			canvas.height = tileHeight * frame.height;
-			ctx = canvas.getContext('2d');
-			imageData = ctx.createImageData(canvas.width, canvas.height);
-			slider.disabled = false;
+		var firstFrame = null, theMovie = null;
+		if (!tileset.loaded) {
+			var oldonload = tileset.onload;
+			tileset.onload = function() {
+				if (firstFrame) {
+					once(firstFrame, theMovie);
+				}
 
-			seek = function(tick) {
-				currentFrame = tick;
-				clearTimeout(renderTick);
-				renderTick = setInterval(render.bind(null, movie), msPerFrame);
-				dirty = true;
-				render(movie);
-			};
-			seek(0);
+				if (oldonload) {
+					oldonload.call(tileset);
+				}
+			}.bind(this);
+		}
 
-			once = function(frame, movie) {};
-		};
-
-		startStream('last_record.cmv', function(frame, movie) {
+		this.callback = function(frame, movie) {
 			once(frame, movie);
 			slider.max = movie.frames.length - 1;
 			dirty = true;
-		});
+		}.bind(this);
 
-		document.body.appendChild(canvas);
-		document.body.appendChild(pauseButton);
-		document.body.appendChild(timeDisplay);
-		document.body.appendChild(slider);
-	};
+		this.element = document.createElement('div');
+		this.element.className = 'cmv-container';
+		this.element.appendChild(canvas);
+		this.element.appendChild(pauseButton);
+		this.element.appendChild(timeDisplay);
+		this.element.appendChild(slider);
+
+		this.dispose = function() {
+			clearTimeout(renderTick);
+			renderTick = null;
+			this.element.removeChild(canvas);
+			this.element.removeChild(pauseButton);
+			this.element.removeChild(timeDisplay);
+			this.element.removeChild(slider);
+			this.callback = function() {};
+			this.dispose = function() {};
+		};
+	}
 
 	return {
-		start: startStream,
-		stop: stopStream
+		start:    startStream,
+		stop:     stopStream,
+		TileSet:  TileSet,
+		Renderer: Renderer
 	};
 }();
