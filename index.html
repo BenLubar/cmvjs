@@ -181,6 +181,7 @@ tileset.onload = function() {
 		if (seconds < 10) {
 			seconds = '0' + seconds;
 		}
+		seconds = String(seconds).substring(0, 4);
 		return minutes + ':' + seconds;
 	};
 
