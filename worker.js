@@ -31,6 +31,7 @@ function startCMV(path) {
 	movie.xhr.open('GET', path, true);
 	movie.xhr.overrideMimeType('text/plain; charset=x-user-defined');
 	movie.xhr.onprogress = cmvProgress.bind(movie);
+	movie.xhr.onload = function() { postMessage({file: path, done: true}); };
 	movie.xhr.send(null);
 
 	movies[path] = movie;
