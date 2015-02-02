@@ -1,3 +1,5 @@
+"use strict";
+
 var worker = new Worker('worker.js');
 var movies = {};
 worker.onmessage = function(e) {
@@ -62,12 +64,10 @@ tileset.onload = function() {
 		var ctx = canvas.getContext('2d');
 		ctx.drawImage(tileset, 0, 0);
 		var tiles = [];
-		for (var x = 0; x < 16; x++) {
-			var col = [];
-			for (var y = 0; y < 16; y++) {
-				col.push(ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight));
+		for (var y = 0; y < 16; y++) {
+			for (var x = 0; x < 16; x++) {
+				tiles.push(ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight));
 			}
-			tiles.push(col);
 		}
 		return tiles;
 	}();
@@ -110,14 +110,20 @@ tileset.onload = function() {
 		}
 	};
 
+	var imageData = null;
 	var renderFrame = function(frame) {
-		var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		var mid = frame.width * frame.height;
 
-		frame.forEach(function(col, tx) {
-			col.forEach(function(tile, ty) {
-				var t = tiles[tile[1]][tile[0]];
-				var fg = colors[tile[4]][tile[2]];
-				var bg = colors[0][tile[3]];
+		for (var tx = 0; tx < frame.width; tx++) {
+			var off1 = tx * frame.height;
+			for (var ty = 0; ty < frame.height; ty++) {
+				var off2 = off1 + ty;
+				var off3 = off2 + mid;
+
+				var t = tiles[frame.data[off2]];
+				var fg = colors[frame.data[off3] >> 6][frame.data[off3] & 7];
+				var bg = colors[0][(frame.data[off3] >> 3) & 7];
+
 				for (var x = 0; x < tileWidth; x++) {
 					for (var y = 0; y < tileHeight; y++) {
 						var off = (x + y * tileWidth) * 4;
@@ -132,8 +138,8 @@ tileset.onload = function() {
 						imageData.data[off + 3] = 255;
 					}
 				}
-			});
-		});
+			}
+		}
 
 		ctx.putImageData(imageData, 0, 0);
 	};
@@ -171,9 +177,10 @@ tileset.onload = function() {
 	};
 
 	var once = function(frame, movie) {
-		canvas.width = tileWidth * frame.length;
-		canvas.height = frame.length ? tileHeight * frame[0].length : 0;
+		canvas.width = tileWidth * frame.width;
+		canvas.height = tileHeight * frame.height;
 		ctx = canvas.getContext('2d');
+		imageData = ctx.createImageData(canvas.width, canvas.height);
 		slider.disabled = false;
 
 		seek = function(tick) {

@@ -88,25 +88,9 @@ function extractFrames(path, toParse, index, version, width, height) {
 			frame[i] = toParse[0][index];
 			index++;
 		}
-		postMessage({frame: parseFrame(frame, version, width, height), file: path});
+		postMessage({frame: {data: frame, width: width, height: height}, file: path});
 	}
 	return 0;
-}
-
-function parseFrame(data, version, width, height) {
-	var frame = [];
-
-	var mid = width * height;
-
-	for (var x = 0; x < width; x++) {
-		var off = x * height;
-		var col = [];
-		for (var y = 0; y < height; y++) {
-			col.push([data[off + y] >> 4, data[off + y] & 0xF, data[mid + off + y] & 7, (data[mid + off + y] >> 3) & 7, data[mid + off + y] >> 6]);
-		}
-		frame.push(col);
-	}
-	return frame;
 }
 
 function uint32(data, off) {
