@@ -1,4 +1,36 @@
 <html>
+<head>
+<title>cmvjs</title>
+<style>
+html {
+	background: #000;
+	width: 800px;
+	margin: auto;
+}
+body {
+	margin: 20px 0;
+}
+canvas, input, button, span {
+	display: block;
+}
+input {
+	width: 640px;
+	height: 22px;
+}
+button {
+	float: left;
+	width: 40px;
+	height: 26px;
+}
+span {
+	float: right;
+	width: 120px;
+	color: #fff;
+	font: 11px/26px monospace;
+	text-align: center;
+}
+</style>
+</head>
 <body>
 <script>
 var worker = new Worker('worker.js');
@@ -75,6 +107,7 @@ tileset.onload = function() {
 		return tiles;
 	}();
 
+	var rendering = false;
 	var canvas = document.createElement('canvas');
 	var ctx = null;
 	var slider = document.createElement('input');
@@ -82,12 +115,35 @@ tileset.onload = function() {
 	slider.min = slider.max = slider.value = 0;
 	slider.disabled = true;
 	slider.oninput = slider.onchange = function() {
-		seek(slider.value);
+		if (!rendering) {
+			seek(+slider.value);
+		}
 	};
+	var msPerFrame = 20;
+	var timeDisplay = document.createElement('span');
 	var renderTick = null;
 	var currentFrame = -1;
 	var seek = null;
+	var mousedown = false;
+	slider.onmousedown = function() {
+		mousedown = true;
+	};
+	slider.onmouseup = function() {
+		mousedown = false;
+	}
+	var dirty = false;
 	var paused = false;
+	var pauseButton = document.createElement('button');
+	pauseButton.innerHTML = '▮▮';
+	pauseButton.onclick = function() {
+		paused = !paused;
+		dirty = true;
+		if (paused) {
+			pauseButton.innerHTML = '▶';
+		} else {
+			pauseButton.innerHTML = '▮▮';
+		}
+	};
 
 	var renderFrame = function(frame) {
 		var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -117,13 +173,35 @@ tileset.onload = function() {
 		ctx.putImageData(imageData, 0, 0);
 	};
 
-	var render = function(movie) {
-		slider.value = currentFrame;
-		renderFrame(movie.frames[currentFrame]);
-
-		if (!paused && movie.frames.length > currentFrame + 1) {
-			currentFrame++;
+	var formatTime = function(t) {
+		var seconds = Math.floor(t * 10) / 10 % 60, minutes = Math.floor(t / 60);
+		if (Math.floor(seconds) == seconds) {
+			seconds += '.0';
 		}
+		if (seconds < 10) {
+			seconds = '0' + seconds;
+		}
+		return minutes + ':' + seconds;
+	};
+
+	var render = function(movie) {
+		rendering = true;
+
+		if (!mousedown) {
+			slider.value = currentFrame;
+		}
+		if (dirty) {
+			renderFrame(movie.frames[currentFrame]);
+			timeDisplay.innerHTML = formatTime(currentFrame * msPerFrame / 1000) + ' / ' + formatTime((movie.frames.length - 1) * msPerFrame / 1000);
+			dirty = false;
+		}
+
+		if (!paused && !mousedown && movie.frames.length > currentFrame + 1) {
+			currentFrame++;
+			dirty = true;
+		}
+
+		rendering = false;
 	};
 
 	var once = function(frame, movie) {
@@ -135,7 +213,8 @@ tileset.onload = function() {
 		seek = function(tick) {
 			currentFrame = tick;
 			clearTimeout(renderTick);
-			renderTick = setInterval(render.bind(null, movie), 20);
+			renderTick = setInterval(render.bind(null, movie), msPerFrame);
+			dirty = true;
 			render(movie);
 		};
 		seek(0);
@@ -146,9 +225,14 @@ tileset.onload = function() {
 	startStream('last_record.cmv', function(frame, movie) {
 		once(frame, movie);
 		slider.max = movie.frames.length - 1;
+		dirty = true;
 	});
 
 	document.body.appendChild(canvas);
+	document.body.appendChild(pauseButton);
+	document.body.appendChild(timeDisplay);
 	document.body.appendChild(slider);
 };
 </script>
+</body>
+</html>
