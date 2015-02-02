@@ -11,6 +11,15 @@ var CMV = function() {
 				console.log('no movie for ' + e.data.file);
 				return;
 			}
+			var prev = movie.frames[movie.frames.length - 1];
+			for (var i = 0; prev != null && i < prev.data.length; i++) {
+				if (frame.data[i] != prev.data[i]) {
+					prev = null;
+				}
+			}
+			if (prev != null) {
+				frame = prev;
+			}
 			movie.frames.push(frame);
 			movie.notify.forEach(function(f) {
 				f(frame, movie);
