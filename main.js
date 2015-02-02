@@ -195,14 +195,18 @@ var CMV = function() {
 			if (!mousedown) {
 				slider.value = currentFrame;
 			}
+			var add = 1;
 			if (dirty) {
+				var start = +new Date();
 				renderFrame(movie.frames[currentFrame]);
 				timeDisplay.innerHTML = formatTime(currentFrame * msPerFrame / 1000) + ' / ' + formatTime((movie.frames.length - 1) * msPerFrame / 1000);
 				dirty = false;
+				add += Math.floor((new Date() - start) / msPerFrame);
 			}
 
 			if (!paused && !mousedown && movie.frames.length > currentFrame + 1) {
-				currentFrame++;
+				currentFrame += add;
+				currentFrame = Math.min(currentFrame, movie.frames.length - 1);
 				dirty = true;
 			}
 
