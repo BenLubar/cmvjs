@@ -4,34 +4,33 @@ var CMV = function() {
 	var worker = new Worker('worker.js');
 	var movies = {};
 	worker.onmessage = function(e) {
+		var movie = movies[e.data.file];
+		if (!movie) {
+			console.log('no movie for ' + e.data.file);
+			return;
+		}
 		var frame = e.data.frame;
 		if (frame) {
-			var movie = movies[e.data.file];
-			if (!movie) {
-				console.log('no movie for ' + e.data.file);
-				return;
-			}
-			var prev = movie.frames[movie.frames.length - 1];
+			var prev = movie.frames[frame.index - 1];
 			for (var i = 0; prev != null && i < prev.data.length; i++) {
 				if (frame.data[i] != prev.data[i]) {
 					prev = null;
 				}
 			}
 			if (prev != null) {
-				frame = prev;
+				frame.data = prev.data;
 			}
-			movie.frames.push(frame);
+			movie.frames[frame.index] = frame;
+			movie.loaded = Math.max(movie.loaded, frame.index);
 			movie.notify.forEach(function(f) {
 				f(frame, movie);
 			});
 		}
-		if (e.data.done) {
-			var movie = movies[e.data.file];
-			if (!movie) {
-				console.log('no movie for ' + e.data.file);
-				return;
-			}
-			movie.done = true;
+		if ('loaded' in e.data) {
+			movie.loaded = Math.max(movie.loaded, e.data.loaded);
+		}
+		if ('done' in e.data) {
+			movie.done = e.data.done;
 		}
 	}
 
@@ -46,7 +45,21 @@ var CMV = function() {
 			return;
 		}
 		console.log('starting stream for ' + path);
-		movies[path] = {frames: [], notify: [callback]};
+		movie = {
+			loaded: -1,
+			frames: [],
+			notify: [callback],
+			path: path,
+			seek: function(tick) {
+				movie.frames = [];
+				worker.postMessage({
+					file: path,
+					mode: 'position',
+					position: tick
+				});
+			}
+		};
+		movies[path] = movie;
 		worker.postMessage({file: path, mode: 'start'});
 	}
 
@@ -237,7 +250,11 @@ var CMV = function() {
 				clearTimeout(renderTick);
 				renderTick = setInterval(render.bind(this, movie), msPerFrame);
 				dirty = true;
-				render.call(this, movie);
+				if (movie.frames[tick]) {
+					render.call(this, movie);
+				} else {
+					movie.seek(tick);
+				}
 			};
 			this.seek(0);
 
@@ -245,6 +262,10 @@ var CMV = function() {
 		}.bind(this);
 
 		function render(movie) {
+			if (!(currentFrame in movie.frames)) {
+				return;
+			}
+
 			rendering = true;
 
 			if (!mousedown) {
@@ -255,9 +276,9 @@ var CMV = function() {
 				var start = +new Date();
 				renderFrame(movie.frames[currentFrame]);
 				if (movie.done) {
-					timeDisplay.innerHTML = formatTime(currentFrame * msPerFrame / 1000) + ' / ' + formatTime((movie.frames.length - 1) * msPerFrame / 1000);
+					timeDisplay.innerHTML = formatTime(currentFrame * msPerFrame / 1000) + ' / ' + formatTime(movie.done * msPerFrame / 1000);
 				} else {
-					timeDisplay.innerHTML = formatTime((currentFrame - movie.frames.length - 1) * msPerFrame / 1000) + ' / LIVE';
+					timeDisplay.innerHTML = formatTime((currentFrame - movie.loaded) * msPerFrame / 1000) + ' / LIVE';
 				}
 				dirty = false;
 				add += Math.floor((new Date() - start) / msPerFrame);
@@ -267,6 +288,8 @@ var CMV = function() {
 				currentFrame += add;
 				currentFrame = Math.min(currentFrame, movie.frames.length - 1);
 				dirty = true;
+			} else if (!paused && !mousedown && currentFrame < movie.loaded) {
+				this.seek(currentFrame + 1);
 			}
 
 			rendering = false;
@@ -288,7 +311,11 @@ var CMV = function() {
 
 		this.callback = function(frame, movie) {
 			once(frame, movie);
-			slider.max = movie.frames.length - 1;
+			if (movie.done) {
+				slider.max = movie.done;
+			} else {
+				slider.max = movie.loaded;
+			}
 			dirty = true;
 		}.bind(this);
 
