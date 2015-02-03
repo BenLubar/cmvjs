@@ -277,8 +277,10 @@ var CMV = function() {
 				renderFrame(movie.frames[currentFrame]);
 				if (movie.done) {
 					timeDisplay.innerHTML = formatTime(currentFrame * msPerFrame / 1000) + ' / ' + formatTime(movie.done * msPerFrame / 1000);
+					slider.max = movie.done;
 				} else {
 					timeDisplay.innerHTML = formatTime((currentFrame - movie.loaded) * msPerFrame / 1000) + ' / LIVE';
+					slider.max = movie.loaded;
 				}
 				dirty = false;
 				add += Math.floor((new Date() - start) / msPerFrame);
