@@ -50,12 +50,15 @@ var CMV = function() {
 			frames: [],
 			notify: [callback],
 			path: path,
-			seek: function(tick) {
-				movie.frames = [];
+			seek: function(tick, force) {
+				if (force) {
+					movie.frames = [];
+				}
 				worker.postMessage({
 					file: path,
 					mode: 'position',
-					position: tick
+					position: tick,
+					force: force
 				});
 			}
 		};
@@ -253,7 +256,7 @@ var CMV = function() {
 				if (movie.frames[tick]) {
 					render.call(this, movie);
 				} else {
-					movie.seek(tick);
+					movie.seek(tick, true);
 				}
 			};
 			this.seek(0);
@@ -283,6 +286,7 @@ var CMV = function() {
 					slider.max = movie.loaded;
 				}
 				dirty = false;
+				movie.seek(currentFrame, false);
 				add += Math.floor((new Date() - start) / msPerFrame);
 			}
 

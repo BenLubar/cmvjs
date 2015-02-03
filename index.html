@@ -42,7 +42,11 @@ body {
 <script>
 var tileset = new CMV.TileSet();
 var last_record = new CMV.Renderer(tileset);
-CMV.start('last_record.cmv', last_record.callback);
+var path = 'last_record.cmv';
+if (/\.cmv$/.test(location.hash)) {
+	path = location.hash.substr(1);
+}
+CMV.start(path, last_record.callback);
 document.body.appendChild(last_record.element);
 </script>
 </body>

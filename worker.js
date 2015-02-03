@@ -14,7 +14,7 @@ onmessage = function(e) {
 		var movie = movies[e.data.file];
 		if (movie) {
 			movie.position = e.data.position;
-			cmvProgress.call(movie, true);
+			cmvProgress.call(movie, e.data.force);
 		}
 		break;
 	default:
@@ -46,7 +46,7 @@ function startCMV(path) {
 		cmvProgress.call(movie);
 	};
 	movie.xhr.onload = function() {
-		movie.done++;
+		movie.done = 1;
 		cmvProgress.call(movie);
 	};
 	movie.xhr.send(null);
@@ -79,7 +79,7 @@ function cmvProgress(forcePosition) {
 		this.height = uint32(this.xhr.responseText, 4 * 2);
 		console.log(this.path + ' height: ' + this.height);
 	}
-	if (this.frame > this.position + 180000 && (this.done == 2 || forcePosition)) {
+	if (forcePosition && this.frame > this.position) {
 		console.log(this.path + ' seeking: ' + this.position);
 		this.index = null;
 		this.frame = -1;
