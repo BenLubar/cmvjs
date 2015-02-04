@@ -1,3 +1,6 @@
+window.console = window.console || {};
+console.log = console.log || function(message) {};
+
 var CMV = function() {
 	"use strict";
 

@@ -2,6 +2,9 @@
 
 importScripts('zlib.min.js');
 
+self.console = self.console || {};
+console.log = console.log || function(message) {};
+
 onmessage = function(e) {
 	switch (e.data.mode) {
 	case 'start':
