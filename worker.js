@@ -40,7 +40,8 @@ function startCMV(path) {
 		frame:      -1,
 		position:   0,
 		loaded:     0,
-		done:       0
+		done:       0,
+		keyframes:  []
 	};
 	movie.xhr.open('GET', path, true);
 	movie.xhr.overrideMimeType('text/plain; charset=x-user-defined');
@@ -83,10 +84,11 @@ function cmvProgress(forcePosition) {
 		console.log(this.path + ' height: ' + this.height);
 	}
 	if (forcePosition && this.frame > this.position) {
-		console.log(this.path + ' seeking: ' + this.position);
-		this.index = null;
-		this.frame = -1;
-		this.toParse = [];
+		var keyframe = Math.floor(this.position / 180000);
+		console.log(this.path + ' seeking: ' + this.position + ' (using keyframe ' + keyframe + ')');
+		this.index = this.keyframes[keyframe].index;
+		this.frame = keyframe * 180000 - 1;
+		this.toParse = [this.keyframes[keyframe].data];
 		this.parseIndex = 0;
 	}
 	if (this.index === null && this.loaded >= 4 * 5) {
@@ -147,6 +149,30 @@ function extractFrames() {
 		});
 		if (remaining < length) {
 			return;
+		}
+
+		if ((this.frame + 1) % 180000 == 0) {
+			var keyframe = (this.frame + 1) / 180000;
+			if (!(keyframe in this.keyframes)) {
+				var parseIndex = this.parseIndex;
+				var toParse = this.toParse.slice(0);
+
+				var data = new Uint8Array(remaining);
+				for (var i = 0; i < remaining; i++) {
+					while (parseIndex >= toParse[0].length) {
+						toParse.shift();
+						parseIndex = 0;
+					}
+					data[i] = toParse[0][parseIndex];
+					parseIndex++;
+				}
+
+				console.log(this.path + ' adding keyframe: ' + keyframe + ' (index = ' + this.index + ', ' + remaining + ' bytes)');
+				this.keyframes[keyframe] = {
+					data:  data,
+					index: this.index,
+				};
+			}
 		}
 
 		var frame = new Uint8Array(length);
