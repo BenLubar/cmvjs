@@ -13,6 +13,9 @@ onmessage = function(e) {
 	case 'position':
 		var movie = movies[e.data.file];
 		if (movie) {
+			if (e.data.force) {
+				console.log(movie.path + ' seek request: ' + movie.frame + ' -> ' + e.data.position);
+			}
 			movie.position = e.data.position;
 			cmvProgress.call(movie, e.data.force);
 		}
@@ -119,6 +122,10 @@ function cmvProgress(forcePosition) {
 		} else {
 			break;
 		}
+
+		// allow event handling to run between iterations.
+		setTimeout(cmvProgress.bind(this), 0);
+		return;
 	}
 	if (this.done === 1) {
 		this.done = 2;
