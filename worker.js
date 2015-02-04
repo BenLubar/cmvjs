@@ -83,7 +83,7 @@ function cmvProgress(forcePosition) {
 		this.height = uint32(this.xhr.responseText, 4 * 2);
 		console.log(this.path + ' height: ' + this.height);
 	}
-	if (forcePosition && (this.frame > this.position || Math.floor(this.position / 180000) != Math.floor(this.frame / 180000))) {
+	if (forcePosition && (this.frame >= this.position || Math.floor(this.position / 180000) != Math.floor(this.frame / 180000))) {
 		var keyframe = Math.floor(this.position / 180000);
 		console.log(this.path + ' seeking: ' + this.position + ' (using keyframe ' + keyframe + ')');
 		this.index = this.keyframes[keyframe].index;
