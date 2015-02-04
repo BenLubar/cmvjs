@@ -20,6 +20,7 @@ var CMV = function() {
 			if (prev != null) {
 				frame.data = prev.data;
 			}
+			delete movie.frames[frame.index - 180000];
 			movie.frames[frame.index] = frame;
 			movie.loaded = Math.max(movie.loaded, frame.index);
 			movie.notify.forEach(function(f) {
