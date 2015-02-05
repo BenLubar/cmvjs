@@ -32,7 +32,7 @@ var movies = {};
 
 function startCMV(path) {
 	var movie = {
-		xhr:        new XMLHttpRequest(),
+		data:       new Uint8Array(0).buffer,
 		path:       path,
 		version:    null,
 		width:      null,
@@ -42,21 +42,10 @@ function startCMV(path) {
 		parseIndex: 0,
 		frame:      -1,
 		position:   0,
-		loaded:     0,
 		done:       0,
 		keyframes:  []
 	};
-	movie.xhr.open('GET', path, true);
-	movie.xhr.overrideMimeType('text/plain; charset=x-user-defined');
-	movie.xhr.onprogress = function(e) {
-		movie.loaded = e.loaded;
-		cmvProgress.call(movie);
-	};
-	movie.xhr.onload = function() {
-		movie.done = 1;
-		cmvProgress.call(movie);
-	};
-	movie.xhr.send(null);
+	cmvRequest.call(movie);
 
 	movies[path] = movie;
 }
@@ -70,20 +59,47 @@ function stopCMV(path) {
 	delete movies[path];
 }
 
+function cmvRequest() {
+	var len = this.data.byteLength;
+	this.xhr = new XMLHttpRequest();
+	this.xhr.open('GET', this.path, true);
+	this.xhr.setRequestHeader('Range', 'bytes=' + len + '-' + (len + 1024 * 1024 - 1));
+	this.xhr.responseType = 'arraybuffer';
+	this.xhr.onload = function() {
+		var buf = new Uint8Array(len + this.xhr.response.byteLength);
+		buf.set(new Uint8Array(this.data), 0);
+		buf.set(new Uint8Array(this.xhr.response), len);
+		this.data = buf.buffer;
+
+		var age = new Date(this.xhr.getResponseHeader('Date')) - new Date(this.xhr.getResponseHeader('Last-Modified'));
+
+		if (this.xhr.response.byteLength === 1024 * 1024) {
+			cmvRequest.call(this);
+		} else if (age > 60000) {
+			this.done = 1;
+		} else {
+			setTimeout(cmvRequest.bind(this), 10000);
+		}
+
+		cmvProgress.call(this);
+	}.bind(this);
+	this.xhr.send(null);
+}
+
 function cmvProgress(forcePosition) {
-	if (this.version === null && this.loaded >= 4 * 1) {
-		this.version = uint32(this.xhr.responseText, 4 * 0);
+	if (this.version === null && this.data.byteLength >= 4 * 1) {
+		this.version = uint32(this.data, 4 * 0);
 		console.log(this.path + ' version: ' + this.version);
 		if (this.version < 10000 || this.version > 10001) {
 			throw this.path + ' unsupported cmv version ' + this.version;
 		}
 	}
-	if (this.width === null && this.loaded >= 4 * 2) {
-		this.width = uint32(this.xhr.responseText, 4 * 1);
+	if (this.width === null && this.data.byteLength >= 4 * 2) {
+		this.width = uint32(this.data, 4 * 1);
 		console.log(this.path + ' width: ' + this.width);
 	}
-	if (this.height === null && this.loaded >= 4 * 3) {
-		this.height = uint32(this.xhr.responseText, 4 * 2);
+	if (this.height === null && this.data.byteLength >= 4 * 3) {
+		this.height = uint32(this.data, 4 * 2);
 		console.log(this.path + ' height: ' + this.height);
 	}
 	if (forcePosition && (this.frame >= this.position || Math.floor(this.position / 180000) != Math.floor(this.frame / 180000))) {
@@ -94,11 +110,11 @@ function cmvProgress(forcePosition) {
 		this.toParse = [this.keyframes[keyframe].data];
 		this.parseIndex = 0;
 	}
-	if (this.index === null && this.loaded >= 4 * 5) {
+	if (this.index === null && this.data.byteLength >= 4 * 5) {
 		if (this.version >= 10001) {
 			// skip sound information for now.
-			var i = 4 * 5 + uint32(this.xhr.responseText, 4 * 4) * 50 + 200 * 16 * 4;
-			if (this.loaded >= i) {
+			var i = 4 * 5 + uint32(this.data, 4 * 4) * 50 + 200 * 16 * 4;
+			if (this.data.byteLength >= i) {
 				this.index = i;
 				console.log(this.path + ' finished header');
 			}
@@ -107,17 +123,14 @@ function cmvProgress(forcePosition) {
 			console.log(this.path + ' finished header');
 		}
 	}
-	while (this.index !== null && this.loaded >= this.index + 4) {
+	while (this.index !== null && this.data.byteLength >= this.index + 4) {
 		if (this.frame >= this.position + 180000 && this.done == 2) {
 			break;
 		}
 
-		var length = uint32(this.xhr.responseText, this.index);
-		if (this.loaded >= this.index + 4 + length) {
-			var compressed = new Uint8Array(length);
-			for (var i = 0; i < length; i++) {
-				compressed[i] = this.xhr.responseText.charCodeAt(this.index + 4 + i) & 0xFF;
-			}
+		var length = uint32(this.data, this.index);
+		if (this.data.byteLength >= this.index + 4 + length) {
+			var compressed = new Uint8Array(this.data, this.index + 4, length);
 			var data = new Zlib.Inflate(compressed).decompress();
 			this.index += 4 + length;
 			this.toParse.push(data);
@@ -203,8 +216,9 @@ function extractFrames() {
 }
 
 function uint32(data, off) {
-	return ((data.charCodeAt(off + 0) & 0xFF) <<  0) +
-	       ((data.charCodeAt(off + 1) & 0xFF) <<  8) +
-	       ((data.charCodeAt(off + 2) & 0xFF) << 16) +
-	       ((data.charCodeAt(off + 3) & 0xFF) << 24);
+	data = new Uint8Array(data, off, 4);
+	return (data[0] <<  0) +
+	       (data[1] <<  8) +
+	       (data[2] << 16) +
+	       (data[3] << 24);
 }
