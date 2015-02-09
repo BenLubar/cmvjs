@@ -32,9 +32,15 @@ var CMV = function() {
 		}
 		if ('loaded' in e.data) {
 			movie.loaded = Math.max(movie.loaded, e.data.loaded);
+			movie.notify.forEach(function(f) {
+				f(null, movie);
+			});
 		}
 		if ('done' in e.data) {
 			movie.done = e.data.done;
+			movie.notify.forEach(function(f) {
+				f(null, movie);
+			});
 		}
 	}
 
