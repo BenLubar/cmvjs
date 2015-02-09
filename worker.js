@@ -71,7 +71,7 @@ function cmvRequest() {
 		buf.set(new Uint8Array(this.xhr.response), len);
 		this.data = buf.buffer;
 
-		var age = new Date(this.xhr.getResponseHeader('Date')) - new Date(this.xhr.getResponseHeader('Last-Modified'));
+		var age = new Date(this.xhr.getResponseHeader('Date') || new Date) - new Date(this.xhr.getResponseHeader('Last-Modified'));
 
 		if (this.xhr.response.byteLength === 1024 * 1024) {
 			cmvRequest.call(this);
