@@ -10,6 +10,8 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -58,7 +60,7 @@ func main() {
 	})
 
 	var mtx sync.RWMutex
-	deCache := make(map[dirEnt]dirEnt)
+	deCache := make(map[string]dirEnt)
 
 	http.HandleFunc("/movies.json", func(w http.ResponseWriter, r *http.Request) {
 		dir, err := os.Open(*movieDir)
@@ -83,8 +85,8 @@ func main() {
 				Mod:  fi.ModTime(),
 				Size: fi.Size(),
 			}
-			if cached, ok := deCache[de]; ok {
-				de = cached
+			if cached, ok := deCache[de.Name]; ok {
+				de.Width, de.Height, de.Frames = cached.Width, cached.Height, cached.Frames
 			}
 			data = append(data, de)
 		}
@@ -96,53 +98,52 @@ func main() {
 	})
 
 	go func() {
-		updateFile := func(fn string, isRemove bool) {
-			// clean up
-			mtx.Lock()
-			for de := range deCache {
-				if de.Name == fn {
-					delete(deCache, de)
-				}
-			}
-			mtx.Unlock()
-
+		updateFile := func(fn string, isCreate, isRemove bool) {
 			if isRemove {
+				mtx.Lock()
+				delete(deCache, fn)
+				mtx.Unlock()
 				return
 			}
 
 			f, err := os.Open(filepath.Join(*movieDir, fn))
 			if err != nil {
-				log.Println(err)
+				log.Println(fn, err)
 				return
 			}
+			defer f.Close()
 			stat, err := f.Stat()
 			if err != nil {
-				log.Println(err)
-				f.Close()
+				log.Println(fn, err)
 				return
 			}
-			// StreamCMV closes the file.
-			cmv, err := df2014.StreamCMV(f, 10)
+			if stat.IsDir() {
+				// ignore dir changes
+				return
+			}
+			header, _, r, err := df2014.RawCMV(f)
 			if err != nil {
-				log.Println(err)
+				log.Println(fn, err)
 				return
 			}
 
-			key := dirEnt{
+			de := dirEnt{
 				Name: fn,
 				Mod:  stat.ModTime(),
 				Size: stat.Size(),
 			}
-			value := key
 
-			value.Width = int(cmv.Header.Columns)
-			value.Height = int(cmv.Header.Rows)
-			for range cmv.Frames {
-				value.Frames++
+			de.Width = int(header.Columns)
+			de.Height = int(header.Rows)
+			n, err := io.Copy(ioutil.Discard, r)
+			if err != nil {
+				log.Println(fn, err)
+				return
 			}
+			de.Frames = int(n / int64(header.Columns*header.Rows*2))
 
 			mtx.Lock()
-			deCache[key] = value
+			deCache[fn] = de
 			mtx.Unlock()
 		}
 
@@ -168,7 +169,7 @@ func main() {
 			}
 
 			for _, fn := range names {
-				updateFile(fn, false)
+				updateFile(fn, true, false)
 			}
 		}()
 
@@ -178,7 +179,7 @@ func main() {
 				log.Println(err)
 				continue
 			}
-			updateFile(fn, e.IsRemove())
+			updateFile(fn, e.IsCreate(), e.IsRemove())
 		}
 	}()
 
