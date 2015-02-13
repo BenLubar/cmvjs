@@ -248,7 +248,7 @@ var CMV = function() {
 				firstFrame = frame;
 				theMovie   = movie;
 			}
-			if (!tileset.loaded) {
+			if (!tileset.loaded || !firstFrame) {
 				return;
 			}
 
