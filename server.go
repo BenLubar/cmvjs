@@ -173,7 +173,12 @@ func main() {
 		}()
 
 		for e := range w.C {
-			updateFile(e.Target, e.IsRemove())
+			fn, err := filepath.Rel(*movieDir, e.Target)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			updateFile(fn, e.IsRemove())
 		}
 	}()
 
