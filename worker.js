@@ -123,7 +123,7 @@ function cmvProgress(forcePosition) {
 		console.log(this.path + ' height: ' + this.height);
 	}
 	if (forcePosition && (this.frame >= this.position || Math.floor(this.position / 180000) != Math.floor(this.frame / 180000))) {
-		var keyframe = Math.floor(this.position / 180000);
+		var keyframe = Math.min(Math.floor(this.position / 180000), this.keyframes.length - 1);
 		console.log(this.path + ' seeking: ' + this.position + ' (using keyframe ' + keyframe + ')');
 		this.index = this.keyframes[keyframe].index;
 		this.frame = keyframe * 180000 - 1;
