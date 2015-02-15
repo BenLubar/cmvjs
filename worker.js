@@ -54,7 +54,7 @@ function startCMV(path) {
 				if (entry.Name === path) {
 					var age = new Date(xhr.getResponseHeader('Date') || new Date) - new Date(entry.Mod);
 					if ('Frames' in entry) {
-						if (age > 60000) {
+						if (age > 300000) {
 							postMessage({done: entry.Frames, file: path});
 						} else {
 							postMessage({loaded: entry.Frames, file: path});
@@ -95,13 +95,16 @@ function cmvRequest() {
 
 		if (this.xhr.response.byteLength === 1024 * 1024) {
 			cmvRequest.call(this);
-		} else if (age > 60000) {
+		} else if (age > 300000) {
 			this.done = 1;
 		} else {
 			setTimeout(cmvRequest.bind(this), 10000);
 		}
 
 		cmvProgress.call(this);
+	}.bind(this);
+	this.xhr.onerror = function() {
+		setTimeout(cmvRequest.bind(this), 30000);
 	}.bind(this);
 	this.xhr.send(null);
 }
