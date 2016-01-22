@@ -245,6 +245,7 @@ var CMV = function() {
 			ctx.putImageData(imageData, 0, 0);
 		};
 
+		var waiting = true;
 		var once = function(frame, movie) {
 			if (!firstFrame) {
 				firstFrame = frame;
@@ -273,7 +274,7 @@ var CMV = function() {
 			};
 			this.seek(0);
 
-			once = function(frame, movie) {};
+			waiting = false;
 		}.bind(this);
 
 		function render(movie) {
@@ -312,8 +313,9 @@ var CMV = function() {
 
 			rendering = false;
 
-			if (movie.done && !paused && currentFrame == movie.done) {
-				this.next();
+			if (movie.done && !paused && !mousedown && !waiting && currentFrame == movie.done && this.next()) {
+				waiting = true;
+				firstFrame = null;
 			}
 		};
 
