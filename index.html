@@ -47,48 +47,60 @@ if (location.hash && location.hash.length > 1) {
 	path = location.hash.substr(1);
 }
 if (!/\.cmv$/.test(path)) {
-	var xhr = new XMLHttpRequest();
-	xhr.open('GET', path, true);
-	xhr.responseType = 'json';
-	xhr.onload = function() {
-		var dir = path.replace(/[^\/]*$/, '');
-		var select = document.createElement('select');
-		var prev = null;
-		xhr.response.forEach(function(movie) {
-			var option = document.createElement('option');
-			option.value = dir + movie.name;
-			option.textContent = movie.name;
-			if (!prev) {
+	var select = null;
+	var updatePlaylist = function() {
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', path, true);
+		xhr.responseType = 'json';
+		xhr.onload = function() {
+			var dir = path.replace(/[^\/]*$/, '');
+			var prevValue = null;
+			if (select != null) {
+				prevValue = select.value;
+				document.body.removeChild(select);
+			}
+			select = document.createElement('select');
+			var prev = null;
+			xhr.response.forEach(function(movie) {
+				var option = document.createElement('option');
+				option.value = dir + movie.name;
+				option.textContent = movie.name;
+				if (!prev && (!prevValue || option.value == prevValue)) {
+					option.selected = true;
+					if (!prevValue) {
+						CMV.start(option.value, renderer.callback);
+					}
+					prev = option;
+				}
+				select.appendChild(option);
+			});
+			select.style.display = 'block';
+			select.style.margin = 'auto';
+			select.onchange = function() {
+				var option = select.selectedOptions[0];
+				CMV.stop(prev.value, renderer.callback);
+				CMV.start(option.value, renderer.callback);
+				prev = option;
+			};
+			document.body.appendChild(select);
+			renderer.next = function() {
+				var option = select.selectedOptions[0];
+				if (!option.nextSibling) {
+					return false;
+				}
+				option.selected = false;
+				CMV.stop(option.value, renderer.callback);
+				option = option.nextSibling;
 				option.selected = true;
 				CMV.start(option.value, renderer.callback);
 				prev = option;
-			}
-			select.appendChild(option);
-		});
-		select.style.display = 'block';
-		select.style.margin = 'auto';
-		select.onchange = function() {
-			var option = select.selectedOptions[0];
-			CMV.stop(prev.value, renderer.callback);
-			CMV.start(option.value, renderer.callback);
-			prev = option;
+				return true;
+			};
 		};
-		document.body.appendChild(select);
-		renderer.next = function() {
-			var option = select.selectedOptions[0];
-			if (!option.nextSibling) {
-				return false;
-			}
-			option.selected = false;
-			CMV.stop(option.value, renderer.callback);
-			option = option.nextSibling;
-			option.selected = true;
-			CMV.start(option.value, renderer.callback);
-			prev = option;
-			return true;
-		};
-	}
-	xhr.send(null);
+		xhr.send(null);
+	};
+	updatePlaylist();
+	setInterval(updatePlaylist, 10 * 60 * 1000);
 } else {
 	CMV.start(path, renderer.callback);
 }
