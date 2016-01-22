@@ -47,15 +47,19 @@ if (/\.cmv$/.test(location.hash)) {
 	path = location.hash.substr(1);
 }
 if (path == 'last_record.cmv') {
+	path = 'movies.json';
+}
+if (!/\.cmv$/.test(path)) {
 	var xhr = new XMLHttpRequest();
-	xhr.open('GET', 'movies.json', true);
+	xhr.open('GET', path, true);
 	xhr.responseType = 'json';
 	xhr.onload = function() {
 		var mod = null;
+		var dir = path.replace(/[^\/]*$/, '');
 		xhr.response.forEach(function(movie) {
-			if (mod === null || mod < new Date(movie.Mod)) {
-				mod = new Date(movie.Mod);
-				path = movie.Name;
+			if (mod === null || mod < new Date(movie.mtime)) {
+				mod = new Date(movie.mtime);
+				path = dir + movie.name;
 			}
 		});
 		CMV.start(path, renderer.callback);

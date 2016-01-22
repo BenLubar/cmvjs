@@ -45,26 +45,6 @@ function startCMV(path) {
 		done:       0,
 		keyframes:  []
 	};
-	if (/^[^\/?#]+\.cmv$/.test(path)) {
-		var xhr = new XMLHttpRequest();
-		xhr.open('GET', 'movies.json', true);
-		xhr.responseType = 'json';
-		xhr.onload = function() {
-			xhr.response.forEach(function(entry) {
-				if (entry.Name === path) {
-					var age = new Date(xhr.getResponseHeader('Date') || new Date) - new Date(entry.Mod);
-					if ('Frames' in entry) {
-						if (age > 300000) {
-							postMessage({done: entry.Frames, file: path});
-						} else {
-							postMessage({loaded: entry.Frames, file: path});
-						}
-					}
-				}
-			});
-		}
-		xhr.send(null);
-	}
 	cmvRequest.call(movie);
 
 	movies[path] = movie;
