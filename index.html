@@ -66,15 +66,16 @@ if (!/\.cmv$/.test(path)) {
 			select.appendChild(option);
 		});
 		select.style.display = 'block';
+		select.style.margin = 'auto';
 		select.onchange = function() {
-			var option = select.querySelector(':selected');
+			var option = select.selectedOptions[0];
 			CMV.stop(prev.value, renderer.callback);
 			CMV.start(option.value, renderer.callback);
 			prev = option;
 		};
 		document.body.appendChild(select);
 		renderer.next = function() {
-			var option = select.querySelector(':selected');
+			var option = select.selectedOptions[0];
 			if (!option.nextSibling) {
 				return false;
 			}
