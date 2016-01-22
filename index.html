@@ -42,12 +42,9 @@ body {
 <script>
 var tileset = new CMV.TileSet();
 var renderer = new CMV.Renderer(tileset);
-var path = 'last_record.cmv';
-if (/\.cmv$/.test(location.hash)) {
+var path = 'movies.json';
+if (location.hash && location.hash.length > 1) {
 	path = location.hash.substr(1);
-}
-if (path == 'last_record.cmv') {
-	path = 'movies.json';
 }
 if (!/\.cmv$/.test(path)) {
 	var xhr = new XMLHttpRequest();
