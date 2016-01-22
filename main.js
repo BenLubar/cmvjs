@@ -247,6 +247,9 @@ var CMV = function() {
 
 		var waiting = true;
 		var once = function(frame, movie) {
+			if (!waiting) {
+				return;
+			}
 			if (!firstFrame) {
 				firstFrame = frame;
 				theMovie   = movie;
