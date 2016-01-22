@@ -51,15 +51,41 @@ if (!/\.cmv$/.test(path)) {
 	xhr.open('GET', path, true);
 	xhr.responseType = 'json';
 	xhr.onload = function() {
-		var mod = null;
 		var dir = path.replace(/[^\/]*$/, '');
+		var select = document.createElement('select');
+		var prev = null;
 		xhr.response.forEach(function(movie) {
-			if (mod === null || mod < new Date(movie.mtime)) {
-				mod = new Date(movie.mtime);
-				path = dir + movie.name;
+			var option = document.createElement('option');
+			option.value = dir + movie.name;
+			option.textContent = movie.name;
+			if (!prev) {
+				option.selected = true;
+				CMV.start(option.value, renderer.callback);
+				prev = option;
 			}
+			select.appendChild(option);
 		});
-		CMV.start(path, renderer.callback);
+		select.style.display = 'block';
+		select.onchange = function() {
+			var option = select.querySelector(':selected');
+			CMV.stop(prev.value, renderer.callback);
+			CMV.start(option.value, renderer.callback);
+			prev = option;
+		};
+		document.body.appendChild(select);
+		renderer.next = function() {
+			var option = select.querySelector(':selected');
+			if (!option.nextSibling) {
+				return false;
+			}
+			option.selected = false;
+			CMV.stop(option.value, renderer.callback);
+			option = option.nextSibling;
+			option.selected = true;
+			CMV.start(option.value, renderer.callback);
+			prev = option;
+			return true;
+		};
 	}
 	xhr.send(null);
 } else {

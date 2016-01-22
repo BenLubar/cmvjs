@@ -145,6 +145,8 @@ var CMV = function() {
 	var pauseButtonText = '▮▮', playButtonText = '▶';
 
 	function Renderer(tileset) {
+		this.next = function() { return false; };
+
 		var canvas = document.createElement('canvas');
 		canvas.className = 'cmv-canvas';
 		var ctx = null;
@@ -309,6 +311,10 @@ var CMV = function() {
 			}
 
 			rendering = false;
+
+			if (movie.done && !paused && currentFrame == movie.done) {
+				this.next();
+			}
 		};
 
 		var firstFrame = null, theMovie = null;
