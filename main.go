@@ -90,7 +90,9 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 				return err
 			} else {
 				if e.frames < i*200+len(frames) {
+					e.offset = r.offset
 					e.frames = i*200 + len(frames)
+					updateCache(base, e)
 				}
 			nextFrame:
 				for fi, f := range frames {
@@ -124,6 +126,8 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 							return err
 						}
 						e.frames = (len(r.offset)-2)*200 + len(last)
+						e.offset = r.offset
+						updateCache(base, e)
 					}
 				}
 			}

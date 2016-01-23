@@ -27,6 +27,23 @@ func getPlaylist(base string) ([]*PlaylistEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	cache := js.Global.Get("localStorage").Get("cmvjs-cache-" + base)
+	if cache != js.Undefined {
+		cache = js.Global.Get("JSON").Call("parse", cache)
+		for _, e := range list {
+			ce := cache.Get(e.Name)
+			if ce != js.Undefined {
+				err = json.Unmarshal([]byte(ce.Get("o").String()), &e.offset)
+				if err != nil {
+					return nil, err
+				}
+				err = json.Unmarshal([]byte(ce.Get("f").String()), &e.frames)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	return list, nil
 }
 
@@ -67,4 +84,20 @@ func (path httpReaderAt) ReadAt(b []byte, off int64) (n int, err error) {
 
 func (path httpReaderAt) Close() error {
 	return nil
+}
+
+func updateCache(base string, e *PlaylistEntry) {
+	cache := js.Global.Get("localStorage").Get("cmvjs-cache-" + base)
+	if cache != js.Undefined {
+		cache = js.Global.Get("JSON").Call("parse", cache)
+	} else {
+		cache = js.Global.Get("Object").New()
+	}
+	ce := js.Global.Get("Object").New()
+	b, _ := json.Marshal(&e.offset)
+	ce.Set("o", string(b))
+	b, _ = json.Marshal(&e.frames)
+	ce.Set("f", string(b))
+	cache.Set(e.Name, ce)
+	js.Global.Get("localStorage").Set("cmvjs-cache-"+base, js.Global.Get("JSON").Call("stringify", cache))
 }

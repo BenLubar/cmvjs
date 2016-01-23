@@ -47,3 +47,6 @@ func getPlaylist(base string) ([]*PlaylistEntry, error) {
 func getReaderAt(base string, e *PlaylistEntry) (ReaderAtCloser, error) {
 	return os.Open(filepath.Join(base, e.Name))
 }
+
+func updateCache(base string, e *PlaylistEntry) {
+}
