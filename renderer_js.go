@@ -33,9 +33,11 @@ var tileset struct {
 	Tiles  [256]*js.Object
 }
 
+var container *js.Object
 var canvas *js.Object
+var playlist *js.Object
 
-func initRenderer() error {
+func initRenderer(list []*PlaylistEntry) error {
 	img := js.Global.Get("Image").New()
 	img.Set("src", "curses_800x600.png")
 	ch := make(chan struct{})
@@ -60,14 +62,32 @@ func initRenderer() error {
 	})
 	<-ch
 
+	container = js.Global.Get("document").Call("createElement", "div")
+	js.Global.Get("document").Get("body").Call("appendChild", container)
 	canvas = js.Global.Get("document").Call("createElement", "canvas")
-	js.Global.Get("document").Get("body").Call("appendChild", canvas)
+	container.Call("appendChild", canvas)
+	container.Call("appendChild", js.Global.Get("document").Call("createElement", "br"))
+	playlist = js.Global.Get("document").Call("createElement", "select")
+	container.Call("appendChild", playlist)
+	for i, e := range list {
+		entry := js.Global.Get("document").Call("createElement", "option")
+		entry.Set("value", i)
+		entry.Set("textContent", e.Name)
+		entry.Call("setAttribute", "data-name", e.Name)
+		playlist.Call("appendChild", entry)
+	}
+	playlist.Call("addEventListener", "change", func() {
+		e := list[playlist.Get("value").Int()]
+		go func() {
+			seek <- SeekInfo{e, 0}
+		}()
+	}, false)
 
 	return nil
 }
 
 func closeRenderer() error {
-	js.Global.Get("document").Get("body").Call("removeChild", canvas)
+	js.Global.Get("document").Get("body").Call("removeChild", container)
 	return nil
 }
 
@@ -79,6 +99,7 @@ func beginMovie(e *PlaylistEntry, h *CMVHeader) error {
 	canvas.Set("height", tileset.Height*int(h.Height))
 	ctx = canvas.Call("getContext", "2d")
 	imageData = ctx.Call("createImageData", canvas.Get("width"), canvas.Get("height"))
+	playlist.Call("querySelector", "[data-name=\""+e.Name+"\"]").Set("selected", true)
 	return nil
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-func initRenderer() error {
+func initRenderer(list []*PlaylistEntry) error {
 	err := termbox.Init()
 	if err != nil {
 		return err

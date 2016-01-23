@@ -20,13 +20,16 @@ func main() {
 
 	sort.Sort(playlistSort(list))
 
-	err = initRenderer()
+	err = initRenderer(list)
 	if err != nil {
 		panic(err)
 	}
 	defer closeRenderer()
 
-	for _, e := range list {
+	seekStart := 0
+
+	for j := 0; j < len(list); j++ {
+		e := list[j]
 		if !strings.HasSuffix(e.Name, ".cmv") || e.Type != "file" {
 			continue
 		}
@@ -38,26 +41,56 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		start := time.Now()
 		t := time.NewTicker(r.Header.FrameTime())
-		defer t.Stop()
-		for i := 0; ; i++ {
+		for i := seekStart; ; i++ {
 			if frames, err := r.Frames(i); err == io.EOF {
 				break
 			} else if err != nil {
 				panic(err)
 			} else {
+			nextFrame:
 				for _, f := range frames {
+					start = start.Add(r.Header.FrameTime())
+					if time.Since(start) > r.Header.FrameTime() {
+						continue
+					}
 					err = displayFrame(f)
 					if err != nil {
 						panic(err)
 					}
-					<-t.C
+					select {
+					case s := <-seek:
+						seekStart = s.Block
+						if s.Entry != e {
+							for k := 0; k < len(list); k++ {
+								if list[k] == s.Entry {
+									j = k - 1
+									goto next
+								}
+							}
+							panic("could not find " + s.Entry.Name)
+						}
+						i = seekStart - 1
+						break nextFrame
+					case <-t.C:
+					}
 				}
 			}
 		}
+		seekStart = 0
+	next:
+		t.Stop()
 		r.Close()
 	}
 }
+
+type SeekInfo struct {
+	Entry *PlaylistEntry
+	Block int
+}
+
+var seek = make(chan SeekInfo)
 
 type playlistSort []*PlaylistEntry
 
