@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -47,6 +48,13 @@ func (path httpReaderAt) ReadAt(b []byte, off int64) (n int, err error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusOK {
+		_, err = io.CopyN(ioutil.Discard, resp.Body, off)
+		if err != nil {
+			return 0, err
+		}
+		return io.ReadFull(resp.Body, b)
+	}
 	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
 		return 0, io.EOF
 	}
