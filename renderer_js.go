@@ -2,7 +2,11 @@
 
 package main
 
-import "github.com/gopherjs/gopherjs/js"
+import (
+	"sync"
+
+	"github.com/gopherjs/gopherjs/js"
+)
 
 var colors = [2][8][3]int{
 	{
@@ -36,6 +40,9 @@ var tileset struct {
 var container *js.Object
 var canvas *js.Object
 var playlist *js.Object
+var progress *js.Object
+var seekLock = sync.NewCond(new(sync.Mutex))
+var seeking bool
 
 func initRenderer(list []*PlaylistEntry) error {
 	img := js.Global.Get("Image").New()
@@ -82,6 +89,31 @@ func initRenderer(list []*PlaylistEntry) error {
 			seek <- SeekInfo{e, 0}
 		}()
 	}, false)
+	progress = js.Global.Get("document").Call("createElement", "input")
+	progress.Set("type", "range")
+	container.Call("appendChild", progress)
+	progress.Call("addEventListener", "mousedown", func() {
+		go func() {
+			seekLock.L.Lock()
+			seeking = true
+			seekLock.L.Unlock()
+		}()
+	}, false)
+	progress.Call("addEventListener", "mouseup", func() {
+		go func() {
+			seekLock.L.Lock()
+			seeking = false
+			seekLock.Broadcast()
+			seekLock.L.Unlock()
+		}()
+	}, false)
+	progress.Call("addEventListener", "change", func() {
+		e := list[playlist.Get("value").Int()]
+		v := progress.Get("value").Int() / 200
+		go func() {
+			seek <- SeekInfo{e, v}
+		}()
+	}, false)
 
 	return nil
 }
@@ -96,14 +128,33 @@ var imageData *js.Object
 
 func beginMovie(e *PlaylistEntry, h *CMVHeader) error {
 	canvas.Set("width", tileset.Width*int(h.Width))
+	container.Get("style").Set("width", canvas.Get("width").String()+"px")
 	canvas.Set("height", tileset.Height*int(h.Height))
 	ctx = canvas.Call("getContext", "2d")
 	imageData = ctx.Call("createImageData", canvas.Get("width"), canvas.Get("height"))
 	playlist.Call("querySelector", "[data-name=\""+e.Name+"\"]").Set("selected", true)
+	progress.Set("disabled", true)
+	progress.Set("min", 0)
+	progress.Set("max", 1)
+	progress.Set("value", 0)
 	return nil
 }
 
-func displayFrame(f *CMVFrame) error {
+func displayFrame(index, total int, f *CMVFrame) error {
+	seekLock.L.Lock()
+	if seeking {
+		for seeking {
+			seekLock.Wait()
+		}
+		seekLock.L.Unlock()
+		return nil
+	}
+	seekLock.L.Unlock()
+
+	progress.Set("max", total-1)
+	progress.Set("value", index)
+	progress.Set("disabled", false)
+
 	for tx := 0; tx < f.Width(); tx++ {
 		for ty := 0; ty < f.Height(); ty++ {
 			t := tileset.Tiles[f.Glyph(tx, ty)]

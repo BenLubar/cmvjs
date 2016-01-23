@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	var prevLast *PlaylistEntry
+	var prev []*PlaylistEntry
 	for {
 		list, err := getPlaylist(base)
 		if err != nil {
@@ -27,9 +27,9 @@ func main() {
 		sort.Sort(playlistSort(list))
 
 		start := 0
-		if prevLast != nil {
+		if len(prev) != 0 {
 			for i, e := range list {
-				if e.Name == prevLast.Name {
+				if e.Name == prev[len(prev)-1].Name {
 					start = i + 1
 					break
 				}
@@ -37,8 +37,15 @@ func main() {
 			if start == len(list) {
 				break
 			}
+			for _, e := range list {
+				for _, p := range prev {
+					if e.Name == p.Name {
+						e.offset, e.frames = p.offset, p.frames
+					}
+				}
+			}
 		}
-		prevLast = list[len(list)-1]
+		prev = list
 
 		err = playMovies(base, list, start)
 		if err != nil {
@@ -65,6 +72,9 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 		if err != nil {
 			return err
 		}
+		if len(e.offset) > len(r.offset) {
+			r.offset = e.offset
+		}
 		err = beginMovie(e, &r.Header)
 		if err != nil {
 			return err
@@ -77,13 +87,16 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 			} else if err != nil {
 				return err
 			} else {
+				if e.frames < i*200+len(frames) {
+					e.frames = i*200 + len(frames)
+				}
 			nextFrame:
-				for _, f := range frames {
+				for fi, f := range frames {
 					start = start.Add(r.Header.FrameTime())
 					if time.Since(start) > r.Header.FrameTime() {
 						continue
 					}
-					err = displayFrame(f)
+					err = displayFrame(i*200+fi, e.frames, f)
 					if err != nil {
 						panic(err)
 					}
@@ -97,7 +110,8 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 									goto next
 								}
 							}
-							panic("could not find " + s.Entry.Name)
+							fmt.Println("could not find", s.Entry.Name)
+							continue
 						}
 						i = seekStart - 1
 						break nextFrame
@@ -108,6 +122,7 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 		}
 		seekStart = 0
 	next:
+		e.offset = r.offset
 		t.Stop()
 		r.Close()
 	}
@@ -128,10 +143,12 @@ func (s playlistSort) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s playlistSort) Less(i, j int) bool { return s[i].Mod.Time.Before(s[j].Mod.Time) }
 
 type PlaylistEntry struct {
-	Name string    `json:"name"`
-	Type string    `json:"type"`
-	Mod  NginxTime `json:"mtime"`
-	Size int64     `json:"size"`
+	Name   string    `json:"name"`
+	Type   string    `json:"type"`
+	Mod    NginxTime `json:"mtime"`
+	Size   int64     `json:"size"`
+	offset []int64
+	frames int
 }
 
 type NginxTime struct {

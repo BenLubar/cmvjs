@@ -60,7 +60,7 @@ var termboxColors = [...]termbox.Attribute{
 	termbox.ColorWhite,
 }
 
-func displayFrame(f *CMVFrame) error {
+func displayFrame(index, total int, f *CMVFrame) error {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 
 	for y := 0; y < f.Height(); y++ {
