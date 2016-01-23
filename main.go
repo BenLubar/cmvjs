@@ -75,6 +75,8 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 		if len(e.offset) > len(r.offset) {
 			r.offset = e.offset
 		}
+		found := make(chan []int64, 1)
+		go r.findOffsets(r.offset, found)
 		err = beginMovie(e, &r.Header)
 		if err != nil {
 			return err
@@ -116,6 +118,12 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 						i = seekStart - 1
 						break nextFrame
 					case <-t.C:
+					case r.offset = <-found:
+						last, err := r.Frames(len(r.offset) - 1)
+						if err != nil {
+							return err
+						}
+						e.frames = (len(r.offset)-1)*200 + len(last)
 					}
 				}
 			}
@@ -320,6 +328,25 @@ func (cmv *CMVReader) Frames(index int) ([]*CMVFrame, error) {
 		}
 	}
 	return frames, nil
+}
+
+func (cmv *CMVReader) findOffsets(offset []int64, found chan<- []int64) {
+	// make sure we aren't modifying the extra capacity of the original
+	// offset slice.
+	offset = append([]int64(nil), offset...)
+	const size = 4
+	for {
+		var l uint32
+		err := binary.Read(io.NewSectionReader(cmv.r, offset[len(offset)-1], size), binary.LittleEndian, &l)
+		if err == io.EOF {
+			found <- offset
+			return
+		}
+		if err != nil {
+			return
+		}
+		offset = append(offset, offset[len(offset)-1]+size+int64(l))
+	}
 }
 
 func (cmv *CMVReader) Close() error {
