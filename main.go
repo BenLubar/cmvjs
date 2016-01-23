@@ -100,7 +100,7 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 					}
 					err = displayFrame(i*200+fi, e.frames, f)
 					if err != nil {
-						panic(err)
+						return err
 					}
 					select {
 					case s := <-seek:
@@ -119,11 +119,11 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 						break nextFrame
 					case <-t.C:
 					case r.offset = <-found:
-						last, err := r.Frames(len(r.offset) - 1)
+						last, err := r.Frames(len(r.offset) - 2)
 						if err != nil {
 							return err
 						}
-						e.frames = (len(r.offset)-1)*200 + len(last)
+						e.frames = (len(r.offset)-2)*200 + len(last)
 					}
 				}
 			}
