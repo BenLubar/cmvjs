@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -16,8 +17,10 @@ var base = js.Global.Get("location").Get("hash").String()[1:]
 
 func getPlaylist(base string) ([]*PlaylistEntry, error) {
 	resp, err := http.Get(base)
-	if err != nil {
-		return nil, err
+	for err != nil {
+		js.Global.Get("console").Call("error", base+": "+err.Error())
+		time.Sleep(time.Second)
+		resp, err = http.Get(base)
 	}
 	defer resp.Body.Close()
 
@@ -60,8 +63,10 @@ func (path httpReaderAt) ReadAt(b []byte, off int64) (n int, err error) {
 	}
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(b))-1))
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return 0, err
+	for err != nil {
+		js.Global.Get("console").Call("error", string(path)+": "+err.Error())
+		time.Sleep(time.Second)
+		resp, err = http.DefaultClient.Do(req)
 	}
 	defer resp.Body.Close()
 
