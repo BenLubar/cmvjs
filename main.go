@@ -13,33 +13,61 @@ import (
 )
 
 func main() {
-	list, err := getPlaylist(base)
-	if err != nil {
-		panic(err)
+	var prevLast *PlaylistEntry
+	for {
+		list, err := getPlaylist(base)
+		if err != nil {
+			panic(err)
+		}
+
+		if len(list) == 0 {
+			return
+		}
+
+		sort.Sort(playlistSort(list))
+
+		start := 0
+		if prevLast != nil {
+			for i, e := range list {
+				if e.Name == prevLast.Name {
+					start = i + 1
+					break
+				}
+			}
+			if start == len(list) {
+				break
+			}
+		}
+		prevLast = list[len(list)-1]
+
+		err = playMovies(base, list, start)
+		if err != nil {
+			panic(err)
+		}
 	}
+}
 
-	sort.Sort(playlistSort(list))
-
-	err = initRenderer(list)
+func playMovies(base string, list []*PlaylistEntry, start int) error {
+	err := initRenderer(list)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer closeRenderer()
 
 	seekStart := 0
 
-	for j := 0; j < len(list); j++ {
+	for j := start; j < len(list); j++ {
 		e := list[j]
 		if !strings.HasSuffix(e.Name, ".cmv") || e.Type != "file" {
 			continue
 		}
 		r, err := getCMVReader(base, e)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		err = beginMovie(e, &r.Header)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		start := time.Now()
 		t := time.NewTicker(r.Header.FrameTime())
@@ -47,7 +75,7 @@ func main() {
 			if frames, err := r.Frames(i); err == io.EOF {
 				break
 			} else if err != nil {
-				panic(err)
+				return err
 			} else {
 			nextFrame:
 				for _, f := range frames {
@@ -83,6 +111,7 @@ func main() {
 		t.Stop()
 		r.Close()
 	}
+	return nil
 }
 
 type SeekInfo struct {
