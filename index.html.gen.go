@@ -1,7 +1,0 @@
-// AUTOMATICALLY GENERATED FILE. DO NOT EDIT.
-
-package main
-
-var indexhtml = html(asset.init(asset{Name: "index.html", Content: "" +
-	"<html>\n<head>\n<title>cmvjs</title>\n<style>\nhtml {\n\tbackground: #000;\n}\nbody {\n\tmargin: 0;\n}\n.cmv-container {\n\twidth: 800px;\n\tmargin: auto;\n}\n.cmv-container:after {\n\tcontent: '';\n\tclear: both;\n}\n.cmv-canvas, .cmv-time-slider, .cmv-pause-button, .cmv-time-display {\n\tdisplay: block;\n}\n.cmv-time-slider {\n\twidth: 610px;\n\theight: 22px;\n}\n.cmv-pause-button {\n\tfloat: left;\n\twidth: 40px;\n\theight: 26px;\n}\n.cmv-time-display {\n\tfloat: right;\n\twidth: 150px;\n\tcolor: #fff;\n\tfont: 11px/26px monospace;\n\ttext-align: center;\n}\n</style>\n</head>\n<body>\n<script src=\"main.js\"></script>\n<script>\nvar tileset = new CMV.TileSet();\nvar renderer = new CMV.Renderer(tileset);\nvar path = 'last_record.cmv';\nif (/\\.cmv$/.test(location.hash)) {\n\tpath = location.hash.substr(1);\n}\nif (path == 'last_record.cmv') {\n\tvar xhr = new XMLHttpRequest();\n\txhr.open('GET', 'movies.json', true);\n\txhr.responseType = 'json';\n\txhr.onload = function() {\n\t\tvar mod = null;\n\t\txhr.response.forEach(function(movie) {\n\t\t\tif (mod === null || mod < new Date(movie.Mod)) {\n\t\t\t\tmod = new Date(movie.Mod);\n\t\t\t\tpath = movie.Name;\n\t\t\t}\n\t\t});\n\t\tCMV.start(path, renderer.callback);\n\t}\n\txhr.send(null);\n} else {\n\tCMV.start(path, renderer.callback);\n}\ndocument.body.appendChild(renderer.element);\n</script>\n</body>\n</html>\n" +
-	""}))

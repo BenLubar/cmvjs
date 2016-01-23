@@ -1,70 +1,10 @@
+<!DOCTYPE html>
 <html>
 <head>
-<title>cmvjs</title>
-<style>
-html {
-	background: #000;
-}
-body {
-	margin: 0;
-}
-.cmv-container {
-	width: 800px;
-	margin: auto;
-}
-.cmv-container:after {
-	content: '';
-	clear: both;
-}
-.cmv-canvas, .cmv-time-slider, .cmv-pause-button, .cmv-time-display {
-	display: block;
-}
-.cmv-time-slider {
-	width: 610px;
-	height: 22px;
-}
-.cmv-pause-button {
-	float: left;
-	width: 40px;
-	height: 26px;
-}
-.cmv-time-display {
-	float: right;
-	width: 150px;
-	color: #fff;
-	font: 11px/26px monospace;
-	text-align: center;
-}
-</style>
+<meta charset="utf-8">
+<title>cmv.js</title>
 </head>
 <body>
-<script src="main.js"></script>
-<script>
-var tileset = new CMV.TileSet();
-var renderer = new CMV.Renderer(tileset);
-var path = 'last_record.cmv';
-if (/\.cmv$/.test(location.hash)) {
-	path = location.hash.substr(1);
-}
-if (path == 'last_record.cmv') {
-	var xhr = new XMLHttpRequest();
-	xhr.open('GET', 'movies.json', true);
-	xhr.responseType = 'json';
-	xhr.onload = function() {
-		var mod = null;
-		xhr.response.forEach(function(movie) {
-			if (mod === null || mod < new Date(movie.Mod)) {
-				mod = new Date(movie.Mod);
-				path = movie.Name;
-			}
-		});
-		CMV.start(path, renderer.callback);
-	}
-	xhr.send(null);
-} else {
-	CMV.start(path, renderer.callback);
-}
-document.body.appendChild(renderer.element);
-</script>
+<script src="cmvjs.js"></script>
 </body>
 </html>
