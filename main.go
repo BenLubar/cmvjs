@@ -81,7 +81,6 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 		if err != nil {
 			return err
 		}
-		start := time.Now()
 		t := time.NewTicker(r.Header.FrameTime())
 		for i := seekStart; ; i++ {
 			if frames, err := r.Frames(i); err == io.EOF {
@@ -94,6 +93,7 @@ func playMovies(base string, list []*PlaylistEntry, start int) error {
 					e.frames = i*200 + len(frames)
 					updateCache(base, e)
 				}
+				start := time.Now()
 			nextFrame:
 				for fi, f := range frames {
 					start = start.Add(r.Header.FrameTime())
