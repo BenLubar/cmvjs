@@ -8,12 +8,19 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/gopherjs/gopherjs/js"
 )
 
-var base = js.Global.Get("location").Get("hash").String()[1:]
+var base = func(hash *js.Object) string {
+	if hash.Get("length").Int() == 0 {
+		return "../movies.json"
+	}
+	return strings.TrimPrefix(hash.String(), "#")
+}(js.Global.Get("location").Get("hash"))
 
 func getPlaylist(base string) ([]*PlaylistEntry, error) {
 	resp, err := http.Get(base)
@@ -51,7 +58,10 @@ func getPlaylist(base string) ([]*PlaylistEntry, error) {
 }
 
 func getReaderAt(base string, e *PlaylistEntry) (ReaderAtCloser, error) {
-	return httpReaderAt(base + e.Name), nil
+	if strings.HasSuffix(base, ".json") {
+		base = path.Dir(base)
+	}
+	return httpReaderAt(path.Join(base, e.Name)), nil
 }
 
 type httpReaderAt string
